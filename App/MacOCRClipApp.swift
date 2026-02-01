@@ -24,8 +24,18 @@ struct MacOCRClipApp: App {
     }
 
     static func runFlow() async {
-        await MainActor.run {
-            SelectionOverlayController.shared.beginSelection()
+        do {
+            let text = try await ScreenshotOCRFlow.runInteractiveScreenshotOCR()
+            ClipboardService.writeText(text)
+
+            let preview = text.replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            if preview.isEmpty {
+                NotifyService.notify(title: "OCR", body: "未检测到文字（已复制空文本）")
+            } else {
+                NotifyService.notify(title: "OCR", body: "已复制：\(preview.prefix(30))")
+            }
+        } catch {
+            NotifyService.notify(title: "OCR", body: "失败：\(error.localizedDescription)")
         }
     }
 }

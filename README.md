@@ -17,24 +17,27 @@
 
 可在 `HotKeyManager.swift` 里改。
 
-## 行为
-- 触发快捷键后，会弹出一个全屏透明遮罩。
-- 用鼠标拖拽框选区域，松开后：
-  - 截图该区域
-  - OCR 识别（zh-Hans + en-US）
-  - 将结果写入剪贴板（纯文本）
+## 行为（macOS 15+ 兼容版）
+- 触发快捷键后，会调用系统自带 `/usr/sbin/screencapture` 进入交互式选区（系统截图 UI）。
+- 选区完成后截图会先进入**剪贴板（图片）**，然后 App：
+  - 从剪贴板读取图片
+  - Vision OCR 识别（zh-Hans + en-US）
+  - 将识别结果写回剪贴板（纯文本）
   - 右上角发一个系统通知提示
+
+> 为什么改成这样：macOS 15 之后，应用内直接抓屏（CGWindowListCreateImage 等）更容易遇到权限/黑屏/失败。
+> 让系统截图进程完成采集是目前最稳的方式。
 
 ## 代码结构
 - `MacOCRClipApp.swift`：MenuBarExtra 入口
 - `HotKeyManager.swift`：全局快捷键（Carbon RegisterEventHotKey）
-- `SelectionOverlayController.swift`：全屏选区 UI（NSWindow + NSView）
-- `ScreenGrabber.swift`：从选区 rect 截图（CGWindowListCreateImage）
+- `ScreenshotOCRFlow.swift`：调用系统 screencapture 交互式截图 → 读取剪贴板图片 → OCR
 - `OCRService.swift`：Vision OCR
 - `ClipboardService.swift`：写入 NSPasteboard
 - `NotifyService.swift`：通知提示
 
 ## 已知限制（MVP 范围内接受）
 - 只做纯文本，不重建排版。
-- OCR 失败/无文字会提示并写入空字符串（可改成不覆盖剪贴板）。
+- OCR 失败/无文字会提示，并默认仍会把结果写入剪贴板（可按需改为“空结果不覆盖剪贴板”）。
+- 依赖系统 `/usr/sbin/screencapture`：如果用户取消选区（ESC），会提示“已取消”。
 
